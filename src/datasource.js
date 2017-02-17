@@ -157,35 +157,45 @@ export class PredixTimeSeriesDatasource {
     SinglePredixTimeSeriesQuery(aQuery) {
         var deferred = this.q.defer();
         var request = this.backendSrv.datasourceRequest({
-                url: this.tsURL + '/v1/datapoints',
-                data: JSON.stringify(aQuery.fullQuery),
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + this.uaaTokenCache.uaacToken,
-                    'Predix-Zone-Id': this.predixZoneId,
-                    'Access-Control-Allow-Origin': this.uaac_origin
+            url: this.tsURL + '/v1/datapoints',
+            data: JSON.stringify(aQuery.fullQuery),
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + this.uaaTokenCache.uaacToken,
+                'Predix-Zone-Id': this.predixZoneId,
+                'Access-Control-Allow-Origin': this.uaac_origin
+            }
+        }).then(function(result) {
+            // we always get one tag back
+            var tag = result.data.tags[0];
+            var tagName = tag.name;
+            if ((typeof aQuery.targetAlias !== 'undefined') && (aQuery.targetAlias.length > 0)) {
+                tagName = aQuery.targetAlias;
+            }
+            // construct the response
+            var a_metric = {
+                target: tagName,
+                datapoints: []
+            };
+            // add in the datapoints, picking the correct fields
+            // predix has a "quality" field that is ignored
+            _.each(tag.results[0].values, function(timeseries) {
+                var newseries = [timeseries[1], timeseries[0]];
+
+                // Specific filter for our client - Corey Shrader with Bin Yang's PITC Analytics Team
+                if ((tag.name == "rttMonLatestHTTPOperRTT" || tag.name == "rttMonLatestHTTPOperRTT.detectOutlier") && tag.results[0].attributes.instance[0] == "701") {
+                    //console.log("Old: " + newseries[0]);
+                    if (newseries[0] != 0) {
+                        newseries[0] = 80000 / newseries[0];
+                    }
+                    //console.log("New: " + newseries[0]);
                 }
-            }).then(function(result) {
-                // we always get one tag back
-                var tag = result.data.tags[0];
-                var tagName = tag.name;
-                if ((typeof aQuery.targetAlias !== 'undefined') && (aQuery.targetAlias.length > 0)) {
-                    tagName = aQuery.targetAlias;
-                }
-                // construct the response
-                var a_metric = {
-                    target: tagName,
-                    datapoints: []
-                };
-                // add in the datapoints, picking the correct fields
-                // predix has a "quality" field that is ignored
-                _.each(tag.results[0].values, function(timeseries) {
-                    var newseries = [timeseries[1], timeseries[0]];
-                    a_metric.datapoints.push(newseries);
-                });
-                return a_metric;
-            })
+
+                a_metric.datapoints.push(newseries);
+            });
+            return a_metric;
+        })
             .then(function(response) {
                 deferred.resolve(response);
             }, function(error) {
@@ -201,7 +211,7 @@ export class PredixTimeSeriesDatasource {
             var checkTime = new Date(now.getTime() + 1000 * 30);
             if (typeof _this.uaaTokenCache.uaacTokenType === 'undefined' ||
                 (typeof _this.uaaTokenCache.expiresDTTM !== 'undefined' &&
-                    _this.uaaTokenCache.expiresDTTM < checkTime)) {
+                _this.uaaTokenCache.expiresDTTM < checkTime)) {
                 var clientID = _this.clientData.split(":")[0];
                 var clientSecret = _this.clientData.split(":")[1];
                 var payload = encodeURI("client_id=" + clientID +
@@ -334,7 +344,6 @@ export class PredixTimeSeriesDatasource {
                         // only add filters if some are defined
                         aQuery.tags[0].filters = {};
                         aQuery.tags[0].filters.attributes = attributes;
-                        console.log(aQuery);
                     }
                 }
                 // Add the query and the target alias

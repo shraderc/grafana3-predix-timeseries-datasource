@@ -222,6 +222,16 @@ var PredixTimeSeriesDatasource = exports.PredixTimeSeriesDatasource = function (
                 // predix has a "quality" field that is ignored
                 _lodash2.default.each(tag.results[0].values, function (timeseries) {
                     var newseries = [timeseries[1], timeseries[0]];
+
+                    // Specific filter for our client - Corey Shrader with Bin Yang's PITC Analytics Team
+                    if ((tag.name == "rttMonLatestHTTPOperRTT" || tag.name == "rttMonLatestHTTPOperRTT.detectOutlier") && tag.results[0].attributes.instance[0] == "701") {
+                        //console.log("Old: " + newseries[0]);
+                        if (newseries[0] != 0) {
+                            newseries[0] = 80000 / newseries[0];
+                        }
+                        //console.log("New: " + newseries[0]);
+                    }
+
                     a_metric.datapoints.push(newseries);
                 });
                 return a_metric;
@@ -367,7 +377,6 @@ var PredixTimeSeriesDatasource = exports.PredixTimeSeriesDatasource = function (
                             // only add filters if some are defined
                             aQuery.tags[0].filters = {};
                             aQuery.tags[0].filters.attributes = attributes;
-                            console.log(aQuery);
                         }
                     }
                     // Add the query and the target alias
