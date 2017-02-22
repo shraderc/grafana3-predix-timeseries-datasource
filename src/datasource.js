@@ -186,7 +186,7 @@ export class PredixTimeSeriesDatasource {
                 // Specific filter for our client - Corey Shrader with Bin Yang's PITC Analytics Team
                 if ((tag.name == "rttMonLatestHTTPOperRTT" || tag.name == "rttMonLatestHTTPOperRTT.detectOutlier") && tag.results[0].attributes.instance[0] == "701") {
                     //console.log("Old: " + newseries[0]);
-                    if (newseries[0] != 0) {
+                    if (newseries[0] != 0 && newseries[0] != -1) {
                         newseries[0] = 80000 / newseries[0];
                     }
                     //console.log("New: " + newseries[0]);
